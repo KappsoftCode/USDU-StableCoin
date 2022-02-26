@@ -1,0 +1,31 @@
+{
+  "name": "usdustablecoin",
+  "version": "0.0.1",
+  "description": "This repository includes the smartcontract and associated codes for USDU Stable ERC 20 Token.",
+  "main": "truffle-config.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "truffle test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KappsoftCode/USDU-StableCoin.git"
+  },
+  "keywords": [
+    "USDU",
+    "STABLECOIN",
+    "ERC20"
+  ],
+  "author": "akshaydevh",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/KappsoftCode/USDU-StableCoin/issues"
+  },
+  "homepage": "https://github.com/KappsoftCode/USDU-StableCoin#readme",
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.5.0",
+    "@openzeppelin/contracts-upgradeable": "^4.5.1"
+  }
+}
