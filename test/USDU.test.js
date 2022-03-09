@@ -126,7 +126,7 @@ contract("USDUToken Test", async (accounts) => {
     assert.strictEqual("99999000", web3.utils.fromWei(totalSupply, "ether"));
   });
 
-  it("allows burn from approved accounts", async () => {
+  it("allows owner to burn from approved accounts", async () => {
     await USDUTokenInstance.approve(
       accounts[0],
       web3.utils.toWei("1000", "ether"),
@@ -134,35 +134,17 @@ contract("USDUToken Test", async (accounts) => {
     );
     await USDUTokenInstance.burnFrom(
       accounts[1],
-      web3.utils.toWei("100", "ether"),
+      web3.utils.toWei("100", "ether")
     );
     const balance = await USDUTokenInstance.balanceOf(accounts[1]);
     const totalSupply = await USDUTokenInstance.totalSupply.call();
-    assert.strictEqual("99988900", web3.utils.fromWei(balance, "ether"));
+    assert.strictEqual("9900", web3.utils.fromWei(balance, "ether"));
     assert.strictEqual("99998900", web3.utils.fromWei(totalSupply, "ether"));
     const allowance = await USDUTokenInstance.allowance(
-      accounts[0],
-      accounts[1]
+      accounts[1],
+      accounts[0]
     );
-    assert.strictEqual("0", web3.utils.fromWei(allowance));
-  });
-
-  it("burnable is access controlled", async () => {
-    try {
-      await USDUTokenInstance.revokeRole(
-        "0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848",
-        accounts[1]
-      );
-      await USDUTokenInstance.burn(web3.utils.toWei("1000", "ether"), {
-        from: accounts[1],
-      });
-      assert.fail();
-    } catch (error) {
-      assert.strictEqual(
-        error.message,
-        "Returned error: VM Exception while processing transaction: revert AccessControl: account 0xf17f52151ebef6c7334fad080c5704d77216b732 is missing role 0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848 -- Reason given: AccessControl: account 0xf17f52151ebef6c7334fad080c5704d77216b732 is missing role 0x3c11d16cbaffd01df69ce1c404f6340ee057498f5f00246190ea54220576a848."
-      );
-    }
+    assert.strictEqual("900", web3.utils.fromWei(allowance));
   });
 
   it("is Pausable", async () => {
@@ -213,7 +195,7 @@ contract("USDUToken Test", async (accounts) => {
     assert.strictEqual("100000000", web3.utils.fromWei(balance, "ether"));
     assert.strictEqual("199998900", web3.utils.fromWei(totalSupply, "ether"));
   });
-  it("mintable access controlled", async () => {
+  it("mintable is ownable", async () => {
     try {
       await USDUTokenInstance.mint(
         accounts[3],
@@ -224,7 +206,7 @@ contract("USDUToken Test", async (accounts) => {
     } catch (error) {
       assert.strictEqual(
         error.message,
-        "Returned error: VM Exception while processing transaction: revert AccessControl: account 0xf17f52151ebef6c7334fad080c5704d77216b732 is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6 -- Reason given: AccessControl: account 0xf17f52151ebef6c7334fad080c5704d77216b732 is missing role 0x9f2df0fed2c77648de5860a4cc508cd0818c85b8b8a1ab4ceeef8d981c8956a6."
+        "Returned error: VM Exception while processing transaction: revert Ownable: caller is not the owner -- Reason given: Ownable: caller is not the owner."
       );
     }
   });
@@ -277,5 +259,154 @@ contract("USDUToken Test", async (accounts) => {
     } catch (error) {
       assert.fail();
     }
+  });
+
+  it("allows owner to withdraw trapped tokens", async () => {
+    await USDUTokenInstance.transfer(
+      USDUTokenInstance.address,
+      web3.utils.toWei("1", "ether")
+    );
+    const smartContractBalanceBefore = await USDUTokenInstance.balanceOf.call(
+      USDUTokenInstance.address
+    );
+    const ownerBalanceBefore = await USDUTokenInstance.balanceOf.call(
+      accounts[0]
+    );
+    await USDUTokenInstance.withdrawToken(
+      web3.utils.toWei("1", "ether"),
+      USDUTokenInstance.address
+    );
+    const ownerBalanceAfter = await USDUTokenInstance.balanceOf.call(
+      accounts[0]
+    );
+    const smartContractBalanceAfter = await USDUTokenInstance.balanceOf.call(
+      USDUTokenInstance.address
+    );
+    assert.strictEqual(
+      parseFloat(web3.utils.fromWei(smartContractBalanceBefore, "ether")),
+      parseFloat(web3.utils.fromWei(ownerBalanceAfter, "ether")) -
+        parseFloat(web3.utils.fromWei(ownerBalanceBefore, "ether")),
+      "smart contract balance mismatch"
+    );
+    assert.strictEqual(
+      parseInt(smartContractBalanceAfter),
+      0,
+      "smartcontract balance after withdraw mismatched"
+    );
+  });
+
+  it("should allow owner to transfer in a batch", async () => {
+    try {
+      
+      const rec1BalanceBefore = web3.utils.fromWei(
+        await USDUTokenInstance.balanceOf.call(accounts[1]),
+        "ether"
+      );
+      const rec2BalanceBefore = web3.utils.fromWei(
+        await USDUTokenInstance.balanceOf.call(accounts[2]),
+        "ether"
+      );
+      const rec3BalanceBefore = web3.utils.fromWei(
+        await USDUTokenInstance.balanceOf.call(accounts[3]),
+        "ether"
+      );
+      const rec4BalanceBefore = web3.utils.fromWei(
+        await USDUTokenInstance.balanceOf.call(accounts[4]),
+        "ether"
+      );
+      // let address = [];
+      // let amount = [];
+      // for(let i =0; i<800; i++){
+      //   address.push(accounts[1])
+      //   amount.push(web3.utils.toWei("0.1", "ether"))
+      // }
+      const receipt = await USDUTokenInstance.batchTransfer(
+        [
+          accounts[1],
+          accounts[2],
+          accounts[3],
+          accounts[4],
+        ],
+        [
+          web3.utils.toWei("100", "ether"),
+          web3.utils.toWei("110", "ether"),
+          web3.utils.toWei("120", "ether"),
+          web3.utils.toWei("130", "ether"),
+        ]
+        //address, amount
+      );
+      const rec1BalanceAfter = web3.utils.fromWei(
+        await USDUTokenInstance.balanceOf.call(accounts[1]),
+        "ether"
+      );
+      const rec2BalanceAfter = web3.utils.fromWei(
+        await USDUTokenInstance.balanceOf.call(accounts[2]),
+        "ether"
+      );
+      const rec3BalanceAfter = web3.utils.fromWei(
+        await USDUTokenInstance.balanceOf.call(accounts[3]),
+        "ether"
+      );
+      const rec4BalanceAfter = web3.utils.fromWei(
+        await USDUTokenInstance.balanceOf.call(accounts[4]),
+        "ether"
+      );
+      assert.strictEqual(rec1BalanceAfter - rec1BalanceBefore, 100);
+      assert.strictEqual(rec2BalanceAfter - rec2BalanceBefore, 110);
+      assert.strictEqual(rec3BalanceAfter - rec3BalanceBefore, 120);
+      assert.strictEqual(rec4BalanceAfter - rec4BalanceBefore, 130);
+      //console.log("Gas Used for Batch transfer:", receipt.receipt.gasUsed);
+    } catch (error) {
+      console.log(error)
+    }
+  });
+
+  it("allows owner to set fee param", async () => {
+    await USDUTokenInstance.setFeeParams(10, web3.utils.toWei("1", "ether"));
+    const basisPointsRate = await USDUTokenInstance.basisPointsRate.call();
+    const maxFee = await USDUTokenInstance.maximumFee.call();
+    assert.strictEqual(
+      basisPointsRate.toString(),
+      "10",
+      "setting basisPointRate failed"
+    );
+    assert.strictEqual(
+      maxFee.toString(),
+      web3.utils.toWei("1", "ether").toString(),
+      "setting maxFee failed"
+    );
+  });
+
+  it("transfers a portion of transfer amount as fee", async () => {
+    const balanceSpenderBefore = await USDUTokenInstance.balanceOf(accounts[1]);
+    const balanceRecieverBefore = await USDUTokenInstance.balanceOf(
+      accounts[2]
+    );
+    const balanceOwnerBefore = await USDUTokenInstance.balanceOf(accounts[0]);
+    const receipt = await USDUTokenInstance.transfer(
+      accounts[2],
+      web3.utils.toWei("1000", "ether"),
+      { from: accounts[1] }
+    );
+    const balanceSpenderAfter = await USDUTokenInstance.balanceOf(accounts[1]);
+    const balanceRecieverAfter = await USDUTokenInstance.balanceOf(accounts[2]);
+    const balanceOwnerAfter = await USDUTokenInstance.balanceOf(accounts[0]);
+    assert.strictEqual(
+      web3.utils.fromWei(balanceSpenderBefore, "ether").toString() -
+        web3.utils.fromWei(balanceSpenderAfter, "ether").toString(),
+      1000,
+      "spender balance error"
+    );
+    assert.strictEqual(
+      web3.utils.fromWei(balanceRecieverAfter, "ether").toString() -
+        web3.utils.fromWei(balanceRecieverBefore, "ether").toString(),
+      999,
+      "reciever balance error"
+    );
+    assert.strictEqual(
+      web3.utils.fromWei(balanceOwnerAfter, "ether").toString() -
+        web3.utils.fromWei(balanceOwnerBefore, "ether").toString(),
+      1
+    );
   });
 });
