@@ -39,12 +39,12 @@ contract Blacklistable {
     }
 
     /**
-     * @dev Emitted when new `address` added to holders list.
+     * @dev Emitted when new `address` added to blacklist.
      */
     event BlacklistAdded(address indexed _account);
 
     /**
-     * @dev Emitted when an `address` removed from holders list.
+     * @dev Emitted when an `address` removed from blacklist.
      */
     event BlacklistRemoved(address indexed _account);
 }
@@ -55,7 +55,8 @@ contract USDU_StableCoin_V1 is
     Blacklistable
 {
     using SafeERC20Upgradeable for IERC20Upgradeable;
-    // additional variables for use if transaction fees ever became necessary
+
+    // parameters to calculate fee.
     uint256 public basisPointsRate;
     uint256 public maximumFee;
 
@@ -66,7 +67,7 @@ contract USDU_StableCoin_V1 is
 
     /**
      * @dev initialize the token contract. Minting _totalSupply into owners account.
-     * setting msg sender as DEFAULT_ADMIN_ROLE, MINTER_ROLE, BURNER_ROLE.
+     * setting msg sender as the owner of the contract.
      * Note:initializer modifier is used to prevent initialize token twice.
      */
     function initialize(
@@ -155,22 +156,28 @@ contract USDU_StableCoin_V1 is
      * @dev mint new token to the provided address.
      * Requirements:
      *
-     * - the caller must have has MINTER_ROLE.
+     * - the caller must be the owner of the contract.
      */
     function mint(address to, uint256 amount) public virtual onlyOwner {
         _mint(to, amount);
     }
 
-    function setParams(uint256 newBasisPoints, uint256 newMaxFee)
+    /**
+    * @dev function to set base point and max fee.
+     */
+    function setFeeParams(uint256 newBasisPoints, uint256 newMaxFee)
         public
         onlyOwner
     {
         // Ensure transparency by hardcoding limit beyond which fees can never be added
-        require(newBasisPoints < 20);
-        require(newMaxFee < 50);
+        require(newBasisPoints < 20, "new basis points should be less than 20");
+        require(
+            newMaxFee < 50000000000000000000,
+            "new max fee should be less than 50 Token"
+        );
 
         basisPointsRate = newBasisPoints;
-        maximumFee = newMaxFee * (10**decimals());
+        maximumFee = newMaxFee;
 
         emit ParamsSet(basisPointsRate, maximumFee);
     }
@@ -200,11 +207,14 @@ contract USDU_StableCoin_V1 is
      * @param transferAddresses array contains the to addresses.
      * @param amounts array contains the amount needed to be transfered.
      * - the caller must be owner of the contract.
+     * - transfer address array length is limited to 100 to
+     *   avoid block gas limit issue.
      */
     function batchTransfer(
         address[] calldata transferAddresses,
         uint256[] calldata amounts
     ) external virtual onlyOwner {
+        require(transferAddresses.length <= 100);
         require(
             transferAddresses.length == amounts.length,
             "params length mismatch"
@@ -268,7 +278,7 @@ contract USDU_StableCoin_V1 is
      * @dev function to withdraw ERC20 tokens trapped on smartcontract.
      * @param amount amount of token reuired to withdraw.
      * @param token addres of the ERC20 token smartcontract
-     * Requirement - fuction access restricted to owner.
+        - the caller must be the owner of the contract
      */
 
     function withdrawToken(uint256 amount, address token)
